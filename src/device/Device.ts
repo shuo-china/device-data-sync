@@ -20,6 +20,7 @@ abstract class Device {
   abstract received(topic: string, payload: string): void
   abstract getIssuedIds(): void
   abstract distribute(data: DBPerson[]): void
+  abstract delete(ids: number[]): void
 }
 
 export default Device

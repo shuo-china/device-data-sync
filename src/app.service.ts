@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common'
 import { MQTT_CLIENT_INSTANCE, Notify } from './constant'
 import { MqttClient } from 'mqtt'
 import Device from './device/Device'
-import { suanZiDeviceList, jieYiDeviceList } from './device/config'
+import { suanZiDeviceList, jieYiDeviceList, activityNo } from './device/config'
 import SuanZiDevice from './device/SuanZiDevice'
 import JieYiDevice from './device/JieYiDevice'
 import axios from 'axios'
@@ -22,12 +22,12 @@ export class AppService {
 
   constructor(@Inject(MQTT_CLIENT_INSTANCE) private readonly client: MqttClient) {
     suanZiDeviceList.forEach((d) => {
-      const suanZiInstance = new SuanZiDevice(client, this.notify.bind(this), d.deviceName, d.machineID)
+      const suanZiInstance = new SuanZiDevice(client, this.notify.bind(this), d.deviceName, d.machineID, d?.regionIds)
       this.deviceList.push(suanZiInstance)
     })
 
     jieYiDeviceList.forEach((d) => {
-      const jieYiInstance = new JieYiDevice(client, this.notify.bind(this), d.deviceName, d.machineID)
+      const jieYiInstance = new JieYiDevice(client, this.notify.bind(this), d.deviceName, d.machineID, d?.regionIds)
       this.deviceList.push(jieYiInstance)
     })
 
@@ -69,14 +69,16 @@ export class AppService {
   }
 
   getDbIds() {
-    return axios('https://api-xzez.kylinsoft.ltd/admin/employee_test?activity_no=Q103999267').then((res) => {
+    return axios(`https://api-xzez.kylinsoft.ltd/admin/employee_test?activity_no=${activityNo}`).then((res) => {
       console.log(`数据库人员信息获取成功：${res.data.length}条`)
       this.dbPersons = res.data.map((d) => ({
         id: d.id,
         name: d.name,
         photo: d.face_photo_path,
         regionIds:
-          d.activity_region_ids === '0' || d.activity_region_ids === '' ? [] : d.activity_region_ids.split(','),
+          d.activity_region_ids === '0' || d.activity_region_ids === ''
+            ? []
+            : d.activity_region_ids.split(',').map((i) => +i),
       }))
     })
   }
@@ -96,6 +98,12 @@ export class AppService {
           }
         })
         .map((p) => p.id)
+
+      const needDelIds = _.difference(d.issuedIds, needIssueIds)
+      console.log(`${d.deviceName}需要删除：${needDelIds.length}条`)
+      if (needDelIds.length) {
+        d.delete(needDelIds)
+      }
 
       const noIssueIds = _.difference(needIssueIds, d.issuedIds)
       const noIssueData = this.dbPersons.filter((d) => noIssueIds.includes(d.id))

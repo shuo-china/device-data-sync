@@ -6,6 +6,7 @@ import { DBPerson } from 'src/app.service'
 
 const BulkGet = 'face.bulkGet'
 const BulkSet = 'face.bulkSet'
+const BulkDel = 'face.bulkDelete'
 
 class SuanZiDevice extends Device {
   bulkGetPerPage = 200
@@ -49,6 +50,8 @@ class SuanZiDevice extends Device {
         this.handleBulkGet(result)
       } else if (result.method === BulkSet) {
         this.handleBulkSet()
+      } else if (result.method === BulkDel) {
+        this.handleBulkDel()
       }
     }
   }
@@ -66,7 +69,7 @@ class SuanZiDevice extends Device {
       this.getIssuedIdsFinished = true
       this.notify(Notify.GET_ISSUED_IDS_FINISHED)
       console.log(
-        `${this.deviceName}已获取当前设备中的人员信息：${this.bulkGetPerPage * (this.bulkGetCurrentPage - 1) + items.length}条`,
+        `${this.deviceName}设备中当前的人员信息：${this.bulkGetPerPage * (this.bulkGetCurrentPage - 1) + items.length}条`,
       )
     }
   }
@@ -81,6 +84,10 @@ class SuanZiDevice extends Device {
       this.issueFinished = true
       this.notify(Notify.ISSUE_FINISHED)
     }
+  }
+
+  handleBulkDel() {
+    console.log(`${this.deviceName}已删除多余数据`)
   }
 
   getIssuedIds() {
@@ -135,6 +142,19 @@ class SuanZiDevice extends Device {
               url: item.photo,
             },
           })),
+        },
+      }),
+    )
+  }
+
+  delete(ids: number[]) {
+    this.client.publish(
+      this.publishTopic,
+      JSON.stringify({
+        id: Math.ceil(Math.random() * 10 ** 5),
+        method: BulkDel,
+        params: {
+          trdIDList: ids,
         },
       }),
     )

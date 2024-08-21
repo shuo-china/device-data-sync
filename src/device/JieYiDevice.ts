@@ -6,11 +6,15 @@ import { DBPerson } from 'src/app.service'
 
 const BulkGet = 'QueryPerson'
 const BulkSet = 'AddPersons'
+const BulkDel = 'DeletePersons'
 
 class JieYiDevice extends Device {
   bulkSetPerPage = 10
   bulkSetCurrentPage = 1
   needIssuePersonData = []
+  bulkDelPerPage = 10
+  bulkDelCurrentPage = 1
+  needDelPersonIds = []
 
   get subscribeTopic() {
     return `kirinemqx/jaemont/${this.machineID}/Ack`
@@ -47,6 +51,8 @@ class JieYiDevice extends Device {
         this.handleBulkGet(result)
       } else if (result.operator === BulkSet + '-Ack') {
         this.handleBulkSet()
+      } else if (result.operator === BulkDel + '-Ack') {
+        this.handleBulkDel()
       }
     }
   }
@@ -69,6 +75,16 @@ class JieYiDevice extends Device {
       console.log(`${this.deviceName}下发完成`)
       this.issueFinished = true
       this.notify(Notify.ISSUE_FINISHED)
+    }
+  }
+
+  handleBulkDel() {
+    const lastPage = Math.ceil(this.needDelPersonIds.length / this.bulkDelPerPage)
+    if (this.bulkDelCurrentPage < lastPage) {
+      this.bulkDelCurrentPage++
+      this.deleteByBatch()
+    } else {
+      console.log(`${this.deviceName}已删除多余数据`)
     }
   }
 
@@ -117,6 +133,36 @@ class JieYiDevice extends Device {
         DataEnd: 'EndFlag',
       }),
     )
+  }
+
+  delete(ids: number[]) {
+    this.needDelPersonIds = ids.map((id) => id + '')
+    this.deleteByBatch()
+  }
+
+  deleteByBatch() {
+    const startIndex = (this.bulkDelCurrentPage - 1) * this.bulkDelPerPage
+    const ids = this.needDelPersonIds.slice(startIndex, startIndex + this.bulkDelPerPage)
+
+    if (startIndex) {
+      console.log(`${this.deviceName}已删除：${startIndex}条`)
+    }
+
+    setTimeout(() => {
+      this.client.publish(
+        this.publishTopic,
+        JSON.stringify({
+          messageId: uuidv4(),
+          DataBegin: 'BeginFlag',
+          operator: BulkDel,
+          PersonNum: ids.length,
+          info: {
+            customId: ids,
+          },
+          DataEnd: 'EndFlag',
+        }),
+      )
+    }, 2000)
   }
 }
 
