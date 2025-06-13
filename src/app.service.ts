@@ -107,6 +107,9 @@ export class AppService {
 
       const noIssueIds = _.difference(needIssueIds, d.issuedIds)
       const noIssueData = this.dbPersons.filter((d) => noIssueIds.includes(d.id))
+      console.log('-----------------')
+      console.log(noIssueData)
+      console.log('-----------------')
       console.log(`${d.deviceName}需要下发：${noIssueData.length}条`)
       d.distribute(noIssueData)
     })
